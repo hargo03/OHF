@@ -1,0 +1,16 @@
+[Unit]
+Description=Rob's Outta Here Fiesta
+After=network.target
+
+[Service]
+User=root
+Group=root
+Type=simple
+WorkingDirectory=/opt/ohf/current
+EnvironmentFile=/etc/ohf/ohf.env
+ExecStart=/usr/bin/env node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
