@@ -1,0 +1,85 @@
+name: Deploy OHF
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate server syntax
+        run: node --check server.js
+
+      - name: Validate deploy scripts
+        run: |
+          bash -n deploy/provision.sh
+          bash -n deploy/rollback.sh
+
+      - name: Build release bundle
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='data/messages.json' \
+            -czf ohf-release.tgz \
+            package.json \
+            server.js \
+            public \
+            deploy
+
+      - name: Upload release bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          source: "ohf-release.tgz"
+          target: "/tmp"
+
+      - name: Activate release and restart service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            release_id="${{ github.run_id }}-${{ github.sha }}"
+            release_dir="/opt/ohf/releases/${release_id}"
+            old_current=""
+
+            mkdir -p /opt/ohf/releases
+
+            if [ -L /opt/ohf/current ]; then
+              old_current="$(readlink -f /opt/ohf/current || true)"
+            fi
+
+            rm -rf "$release_dir"
+            mkdir -p "$release_dir"
+            tar -xzf /tmp/ohf-release.tgz -C "$release_dir"
+
+            cd "$release_dir"
+            npm install --omit=dev
+
+            if [ -n "$old_current" ] && [ "$old_current" != "$release_dir" ]; then
+              ln -sfn "$old_current" /opt/ohf/previous
+            fi
+
+            ln -sfn "$release_dir" /opt/ohf/current
+            systemctl restart ohf
+            systemctl status ohf --no-pager
+
+            ls -1dt /opt/ohf/releases/* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+
+            rm -f /tmp/ohf-release.tgz

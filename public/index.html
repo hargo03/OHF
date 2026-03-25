@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rob's Outta Here! 🎉</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Confetti canvas (always visible behind everything) -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- ═══════════════════════════════════════════════════
+       SCREEN 1: Sign-in
+  ════════════════════════════════════════════════════ -->
+  <div id="screen-signin" class="screen active">
+    <div class="signin-card">
+      <div class="party-emojis" aria-hidden="true">🎉&nbsp;🎊&nbsp;🥳</div>
+      <h1 class="title">Rob's Outta Here!</h1>
+      <p class="subtitle">
+        The man. The myth. The legend who broke production every Friday.<br />
+        <strong>Leave him a farewell message before he escapes!</strong>
+      </p>
+      <div class="form-group">
+        <label for="nickname-input">What should we call you at this party?</label>
+        <input
+          type="text"
+          id="nickname-input"
+          placeholder="e.g., Dave the Legend 🕺"
+          maxlength="40"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <button id="btn-signin" class="btn btn-primary btn-lg">
+        Join the Party! 🚀
+      </button>
+      <p class="signin-hint">Your nickname is saved so you won't have to type it again 🎈</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SCREEN 2: Message Wall
+  ════════════════════════════════════════════════════ -->
+  <div id="screen-wall" class="screen">
+
+    <header class="wall-header">
+      <div class="header-inner">
+        <div class="header-title">
+          <span class="header-emoji">🎉</span>
+          <h1>Rob's Outta Here Fiesta!</h1>
+        </div>
+        <div class="header-actions">
+          <span class="user-greeting">Hey, <strong id="user-name-display"></strong>! 👋</span>
+          <button id="btn-add-message" class="btn btn-primary">
+            ✏️ Add Your Message
+          </button>
+          <button id="btn-signout" class="btn btn-ghost" title="Change your nickname">
+            ↩ Change Name
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="wall-main">
+
+      <!-- Loading state -->
+      <div id="state-loading" class="center-state">
+        <div class="spinner"></div>
+        <p>Loading the party… 🎊</p>
+      </div>
+
+      <!-- Empty state -->
+      <div id="state-empty" class="center-state" style="display:none">
+        <div class="state-emoji">🎈</div>
+        <h2>The wall is empty!</h2>
+        <p>Be the first to leave Rob a hilarious farewell message.</p>
+        <button class="btn btn-primary" onclick="openModal()">Add the First Message 🎤</button>
+      </div>
+
+      <!-- Error state -->
+      <div id="state-error" class="center-state" style="display:none">
+        <div class="state-emoji">💀</div>
+        <h2>Uh oh!</h2>
+        <p id="error-text">Something went wrong loading messages.</p>
+        <button class="btn btn-secondary" onclick="loadMessages()">Try Again</button>
+      </div>
+
+      <!-- Messages grid -->
+      <div id="messages-grid" class="messages-grid" style="display:none"></div>
+
+    </main>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       MODAL: Add a Message
+  ════════════════════════════════════════════════════ -->
+  <div id="modal-overlay" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal" id="modal-box">
+      <button id="btn-close-modal" class="modal-close" aria-label="Close">✕</button>
+      <h2 id="modal-title">Leave Rob a Message! 🎊</h2>
+
+      <div class="form-group">
+        <label for="msg-text">Your Farewell Message</label>
+        <textarea
+          id="msg-text"
+          placeholder="e.g., Rob, it's been a wild ride! Thanks for always breaking production on Fridays — you kept us on our toes. You'll be missed (especially by the error logs). ❤️"
+          rows="4"
+          maxlength="1000"
+        ></textarea>
+        <span class="char-count"><span id="msg-char">0</span>/1000</span>
+      </div>
+
+      <div class="form-group">
+        <label for="anim-prompt">🎨 Describe Your Animation</label>
+        <p class="field-hint">
+          Get wild! Try: <em>"confetti raining from the sky"</em>, <em>"a tiny rocket launching into space"</em>,
+          <em>"dancing tacos celebrating"</em>, <em>"fireworks over a city"</em>…
+        </p>
+        <textarea
+          id="anim-prompt"
+          placeholder="Describe any animation you can imagine — Claude will bring it to life!"
+          rows="3"
+          maxlength="300"
+        ></textarea>
+      </div>
+
+      <!-- Preview area -->
+      <div id="preview-area" style="display:none">
+        <h3 class="preview-title">🎬 Animation Preview</h3>
+        <div class="preview-frame-wrap">
+          <iframe
+            id="preview-iframe"
+            sandbox="allow-scripts"
+            title="Animation Preview"
+            scrolling="no"
+          ></iframe>
+        </div>
+        <p class="preview-hint">Love it? Hit <strong>Post to the Wall!</strong> 🎉<br />Not feeling it? Change your prompt and regenerate.</p>
+      </div>
+
+      <!-- Loading indicator -->
+      <div id="modal-loading" class="modal-loading" style="display:none">
+        <div class="spinner spinner-sm"></div>
+        <p id="modal-loading-text">Generating your animation with Claude… ✨</p>
+      </div>
+
+      <!-- Error message -->
+      <div id="modal-error" class="modal-error" style="display:none">
+        <p id="modal-error-text">⚠️ Something went wrong. Please try again.</p>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="modal-actions">
+        <button id="btn-preview" class="btn btn-secondary">
+          🎬 Preview Animation
+        </button>
+        <button id="btn-post" class="btn btn-primary" disabled>
+          📮 Post to the Wall!
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
