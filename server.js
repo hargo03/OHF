@@ -120,10 +120,10 @@ app.post('/api/preview-animation', async (req, res) => {
 
 // POST /api/messages  – create and save a new message
 app.post('/api/messages', async (req, res) => {
-  const { nickname, message, animationPrompt } = req.body;
+  const { nickname, message, animationPrompt, customAnimationHtml } = req.body;
 
-  if (!nickname?.trim() || !message?.trim() || !animationPrompt?.trim()) {
-    return res.status(400).json({ error: 'Nickname, message, and animation prompt are all required' });
+  if (!nickname?.trim() || !message?.trim()) {
+    return res.status(400).json({ error: 'Nickname and message are required' });
   }
 
   if (nickname.trim().length > 40) {
@@ -134,14 +134,21 @@ app.post('/api/messages', async (req, res) => {
   }
 
   try {
-    const animation = await generateAnimation(animationPrompt.trim());
+    let animation = customAnimationHtml;
+    // Only call Claude if no custom animation HTML was provided
+    if (!animation && animationPrompt?.trim()) {
+      animation = await generateAnimation(animationPrompt.trim());
+    } else if (!animation) {
+       return res.status(400).json({ error: 'Either an animation prompt or a selected gallery animation is required.' });
+    }
+
     const messages = readMessages();
 
     const newMessage = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       nickname: nickname.trim(),
       message: message.trim(),
-      animationPrompt: animationPrompt.trim(),
+      animationPrompt: animationPrompt ? animationPrompt.trim() : 'Gallery Selection',
       animation,
       timestamp: new Date().toISOString(),
     };
@@ -156,7 +163,49 @@ app.post('/api/messages', async (req, res) => {
   }
 });
 
-// DELETE /api/messages/:id  – remove a specific message (admin use)
+// PUT /api/messages/:id – edit a specific message
+app.put('/api/messages/:id', async (req, res) => {
+  const { id } = req.params;
+  const { message, animationPrompt, customAnimationHtml } = req.body;
+
+  if (!message?.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  try {
+    const messages = readMessages();
+    const msgIndex = messages.findIndex(m => m.id === id);
+    if (msgIndex === -1) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    let animation = messages[msgIndex].animation;
+    let finalPrompt = messages[msgIndex].animationPrompt;
+
+    if (customAnimationHtml) {
+      animation = customAnimationHtml;
+      finalPrompt = 'Gallery Selection';
+    } else if (animationPrompt && animationPrompt.trim() !== messages[msgIndex].animationPrompt) {
+      animation = await generateAnimation(animationPrompt.trim());
+      finalPrompt = animationPrompt.trim();
+    }
+
+    messages[msgIndex] = {
+      ...messages[msgIndex],
+      message: message.trim(),
+      animationPrompt: finalPrompt,
+      animation
+    };
+
+    writeMessages(messages);
+    res.json(messages[msgIndex]);
+  } catch (err) {
+    console.error('Error updating message:', err.message);
+    res.status(500).json({ error: 'Failed to update message.' });
+  }
+});
+
+// DELETE /api/messages/:id  – remove a specific message 
 app.delete('/api/messages/:id', (req, res) => {
   const messages = readMessages();
   const filtered = messages.filter(m => m.id !== req.params.id);

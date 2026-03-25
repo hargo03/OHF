@@ -7,6 +7,7 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'ohf_nickname';
+const OWNERSHIP_KEY = 'ohf_my_ids';
 
 const AVATARS = [
   '🎭','🦄','🐉','🦊','🐸','🦁','🐼','🦋','🐬','🦅',
@@ -14,11 +15,23 @@ const AVATARS = [
   '🦩','🐙','🍄','🎪','🤖','🦸','🧙','🐝','🦀','🌵',
 ];
 
-const CARD_THEMES = 6; // matches .card-theme-0 through .card-theme-5
+const LOTTIE_URLS = [
+  { name: 'Confetti', url: 'https://assets9.lottiefiles.com/packages/lf20_U10l2e.json' },
+  { name: 'Rocket Launch', url: 'https://assets2.lottiefiles.com/packages/lf20_touohxv0.json' },
+  { name: 'Party Time', url: 'https://assets3.lottiefiles.com/packages/lf20_aBYm0U.json' },
+  { name: 'Dancing Taco', url: 'https://assets5.lottiefiles.com/packages/lf20_s0g2b0.json' },
+  { name: 'Fireworks', url: 'https://assets8.lottiefiles.com/packages/lf20_igjhxt9f.json' }
+];
+
+const CARD_THEMES = 6;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentNickname = localStorage.getItem(STORAGE_KEY) || '';
-let previewedAnimation = null; // stores the last generated animation HTML
+let previewedAnimation = null;
+let selectedLottieHtml = null;
+let editModeId = null; 
+let ownedIds = JSON.parse(localStorage.getItem(OWNERSHIP_KEY) || '[]');
+let loadedMessages = []; // Track to rebuild snapshots easily
 
 // ── DOM References ────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -51,9 +64,13 @@ const modalErrorText   = $('modal-error-text');
 const confettiCanvas   = $('confetti-canvas');
 const toast            = $('toast');
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// New DOM Refs for Toggle/Gallery
+const animTypeRadios   = document.querySelectorAll('input[name="anim-type"]');
+const aiPromptGroup    = $('ai-prompt-group');
+const galleryGroup     = $('gallery-group');
+const lottieGallery    = $('lottie-gallery');
 
-/** Simple djb2 hash for consistent emoji avatar selection */
+// ── Utilities ─────────────────────────────────────────────────────────────────
 function hashStr(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i);
@@ -69,7 +86,7 @@ function themeFor(index) {
 }
 
 function escapeHtml(str) {
-  return str
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -85,12 +102,28 @@ function formatTime(iso) {
   });
 }
 
+function saveOwnedId(id) {
+  if (!ownedIds.includes(id)) {
+    ownedIds.push(id);
+    localStorage.setItem(OWNERSHIP_KEY, JSON.stringify(ownedIds));
+  }
+}
+
 let toastTimer;
 function showToast(msg, duration = 3000) {
   toast.textContent = msg;
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+function buildLottieHtml(url) {
+  return `<!DOCTYPE html><html><head>
+<script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
+<style>body{margin:0;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh;background:transparent;}</style>
+</head><body>
+<dotlottie-player src="${url}" background="transparent" speed="1" style="width:100%;height:100%;" loop autoplay></dotlottie-player>
+</body></html>`;
 }
 
 // ── Confetti Background ───────────────────────────────────────────────────────
@@ -146,11 +179,49 @@ function showToast(msg, duration = 3000) {
   animate();
 })();
 
+// ── Init Lottie Gallery ────────────────────────────────────────────────────────
+function initGallery() {
+  lottieGallery.innerHTML = LOTTIE_URLS.map((lot, idx) => `
+    <div class="lottie-item" data-url="${lot.url}" data-idx="${idx}">
+      <div style="position:absolute; bottom:5px; width:100%; text-align:center; font-size:10px; font-weight:bold; color:#555; z-index:10; pointer-events:none;">${lot.name}</div>
+      <iframe srcdoc='${buildLottieHtml(lot.url)}'></iframe>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.lottie-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.lottie-item').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+      const url = item.getAttribute('data-url');
+      selectedLottieHtml = buildLottieHtml(url);
+      btnPost.disabled = false; 
+    });
+  });
+}
+initGallery();
+
+animTypeRadios.forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    if (e.target.value === 'ai') {
+      aiPromptGroup.style.display = 'block';
+      galleryGroup.style.display = 'none';
+      btnPreview.style.display = 'inline-block';
+      selectedLottieHtml = null;
+      btnPost.disabled = !previewedAnimation;
+    } else {
+      aiPromptGroup.style.display = 'none';
+      galleryGroup.style.display = 'block';
+      btnPreview.style.display = 'none';
+      previewArea.style.display = 'none';
+      btnPost.disabled = !selectedLottieHtml;
+    }
+  });
+});
+
 // ── Screen Management ─────────────────────────────────────────────────────────
 function showSignin() {
   screenWall.classList.remove('active');
   screenSignin.classList.add('active');
-  // Pre-fill nickname if we have one
   if (currentNickname) nicknameInput.value = currentNickname;
   nicknameInput.focus();
 }
@@ -191,8 +262,8 @@ async function loadMessages() {
   try {
     const res  = await fetch('/api/messages');
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
-    const msgs = await res.json();
-    renderMessages(msgs);
+    loadedMessages = await res.json();
+    renderMessages(loadedMessages);
   } catch (err) {
     errorText.textContent = `Couldn't load messages: ${err.message}`;
     setWallState('error');
@@ -214,7 +285,6 @@ function renderMessages(msgs) {
   messagesGrid.innerHTML = msgs.map((m, i) => buildCard(m, i)).join('');
   setWallState('messages');
 
-  // Inject iframe content after DOM is ready
   msgs.forEach(m => {
     const iframe = document.querySelector(`[data-id="${m.id}"] iframe`);
     if (iframe && m.animation) {
@@ -230,6 +300,21 @@ function buildCard(msg, index) {
   const message = escapeHtml(msg.message);
   const prompt  = escapeHtml(msg.animationPrompt);
   const time    = formatTime(msg.timestamp);
+
+  const isOwner = ownedIds.includes(msg.id);
+
+  let actionsHtml = `
+    <div class="card-actions">
+      <button class="btn-action" onclick="downloadSnapshot('${msg.id}')">💾 Snapshot</button>
+  `;
+  if (isOwner) {
+    actionsHtml += `
+      <div style="flex:1"></div>
+      <button class="btn-action" onclick="editMessage('${msg.id}')">✏️ Edit</button>
+      <button class="btn-action delete" onclick="deleteMessage('${msg.id}')">🗑️ Delete</button>
+    `;
+  }
+  actionsHtml += `</div>`;
 
   return `
     <article class="message-card ${theme}" data-id="${msg.id}">
@@ -248,10 +333,82 @@ function buildCard(msg, index) {
       <div class="card-body">
         <p class="card-message">${message}</p>
         <span class="card-prompt-tag">🎨 ${prompt}</span>
+        ${actionsHtml}
       </div>
     </article>
   `;
 }
+
+// ── Card Action Handlers ───────────────────────────────────────────────────────
+window.deleteMessage = async (id) => {
+  if (!confirm('Are you sure you want to delete this message?')) return;
+  try {
+    const res = await fetch(\`/api/messages/\${id}\`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Delete failed');
+    showToast('Message deleted! 🗑️');
+    loadMessages();
+  } catch (err) {
+    showToast('Failed to delete message: ' + err.message);
+  }
+};
+
+window.editMessage = (id) => {
+  const msg = loadedMessages.find(m => m.id === id);
+  if (!msg) return;
+  editModeId = id;
+  openModal();
+  
+  msgText.value = msg.message;
+  msgChar.textContent = msg.message.length;
+  
+  $('modal-title').textContent = 'Edit Your Message ✏️';
+  btnPost.innerHTML = '💾 Save Changes';
+
+  // For simplicity, force AI toggle on edit to let them see prompt. 
+  // If we wanted we could select gallery, but AI prompt is easiest fallback.
+  animTypeRadios[0].click(); 
+  animPrompt.value = msg.animationPrompt === 'Gallery Selection' ? '' : msg.animationPrompt;
+  
+  if (msg.animation) {
+    previewedAnimation = msg.animation;
+    previewIframe.srcdoc = msg.animation;
+    previewArea.style.display = 'block';
+    btnPost.disabled = false;
+  }
+};
+
+window.downloadSnapshot = (id) => {
+  const msg = loadedMessages.find(m => m.id === id);
+  if (!msg || !msg.animation) return showToast('Cannot snapshot this card.');
+
+  let html = msg.animation;
+  const safeNick = escapeHtml(msg.nickname);
+  const safeMsg = escapeHtml(msg.message).replace(/\n/g, '<br>');
+
+  const overlayHtml = \`
+    <div style="position:fixed; bottom:20px; left:20px; right:20px; background:rgba(255,255,255,0.95); padding:15px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.15); font-family:sans-serif; text-align:center; z-index:999999; backdrop-filter:blur(5px); border:1px solid rgba(0,0,0,0.1);">
+      <h3 style="margin:0 0 5px 0; color:#333; font-size:18px;">From: \${safeNick}</h3>
+      <p style="margin:0; color:#555; font-size:14px; line-height:1.4;">\${safeMsg}</p>
+    </div>
+  \`;
+
+  if (html.toLowerCase().includes('</body>')) {
+    html = html.replace('</body>', overlayHtml + '</body>');
+  } else {
+    html += overlayHtml; 
+  }
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = \`FarewellCard_\${safeNick.replace(/[^A-Za-z0-9]/g, '_')}.html\`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Snapshot downloaded! 🎉');
+};
 
 // ── Modal: Open / Close ───────────────────────────────────────────────────────
 function openModal() {
@@ -262,9 +419,12 @@ function openModal() {
 
 function closeModal() {
   modalOverlay.style.display = 'none';
+  editModeId = null;
+  $('modal-title').textContent = 'Leave Rob a Message! 🎊';
+  btnPost.innerHTML = '📮 Post to the Wall!';
 }
 
-window.openModal = openModal; // expose for empty-state button
+window.openModal = openModal;
 
 btnAddMessage.addEventListener('click', openModal);
 btnCloseModal.addEventListener('click', closeModal);
@@ -276,14 +436,16 @@ function resetModal() {
   animPrompt.value       = '';
   msgChar.textContent    = '0';
   previewedAnimation     = null;
+  selectedLottieHtml     = null;
   previewArea.style.display  = 'none';
   modalLoading.style.display = 'none';
   modalError.style.display   = 'none';
   btnPost.disabled           = true;
   previewIframe.srcdoc       = '';
+  animTypeRadios[0].click(); // Reset to AI default
+  document.querySelectorAll('.lottie-item').forEach(el => el.classList.remove('selected'));
 }
 
-// Character counter
 msgText.addEventListener('input', () => {
   msgChar.textContent = msgText.value.length;
 });
@@ -318,47 +480,66 @@ btnPreview.addEventListener('click', async () => {
     btnPost.disabled = false;
     showToast('Animation ready! 🎬 Check the preview!');
   } catch (err) {
-    showModalError(`Animation failed: ${err.message}`);
+    showModalError(\`Animation failed: \${err.message}\`);
   } finally {
     setModalLoading(false);
   }
 });
 
-// ── Modal: Post Message ───────────────────────────────────────────────────────
+// ── Modal: Post / Edit Message ────────────────────────────────────────────────
 btnPost.addEventListener('click', async () => {
   const message = msgText.value.trim();
   const prompt  = animPrompt.value.trim();
+  const isAi = document.querySelector('input[name="anim-type"]:checked').value === 'ai';
 
   if (!message) {
     msgText.focus();
     return showToast('⚠️ Please write a message for Rob!');
   }
-  if (!previewedAnimation) {
+  
+  if (isAi && !previewedAnimation && !editModeId) {
     return showToast('⚠️ Please preview your animation first!');
   }
+  if (!isAi && !selectedLottieHtml) {
+    return showToast('⚠️ Please select a gallery animation!');
+  }
 
-  setModalLoading(true, 'Posting your message to the wall… 🚀');
+  setModalLoading(true, editModeId ? 'Updating message…' : 'Posting your message to the wall… 🚀');
   hideModalError();
   btnPost.disabled = true;
 
   try {
-    const res  = await fetch('/api/messages', {
-      method: 'POST',
+    const payload = {
+      nickname: currentNickname, // PUT doesn't technically update nickname right now, but fine to send
+      message,
+    };
+    
+    if (isAi) {
+      payload.animationPrompt = prompt;
+      payload.customAnimationHtml = previewedAnimation; // Send what we already generated! Avoid double-generating.
+    } else {
+      payload.customAnimationHtml = selectedLottieHtml;
+    }
+
+    const url = editModeId ? \`/api/messages/\${editModeId}\` : '/api/messages';
+    const method = editModeId ? 'PUT' : 'POST';
+
+    const res  = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nickname: currentNickname,
-        message,
-        animationPrompt: prompt,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to post message');
+    if (!res.ok) throw new Error(data.error || 'Failed to save message');
+
+    // Save ownership for new messages
+    if (!editModeId) saveOwnedId(data.id);
 
     closeModal();
-    showToast('Your message is on the wall! 🎉🎉🎉', 4000);
+    showToast(editModeId ? 'Message updated! ✨' : 'Your message is on the wall! 🎉🎉🎉', 4000);
     await loadMessages();
   } catch (err) {
-    showModalError(`Couldn't post: ${err.message}`);
+    showModalError(\`Couldn't save: \${err.message}\`);
     btnPost.disabled = false;
   } finally {
     setModalLoading(false);
