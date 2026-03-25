@@ -48,7 +48,7 @@ function writeMessages(messages) {
 // ── Animation generator ───────────────────────────────────────────────────────
 async function generateAnimation(userPrompt) {
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-3-5-sonnet-latest',
     max_tokens: 2048,
     system: `You are a hilarious creative web animator building animations for a farewell office party card app called "Rob's Outta Here Fiesta".
 
