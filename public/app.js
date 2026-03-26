@@ -40,6 +40,28 @@ const GIF_URLS = [
 
 const CARD_THEMES = 6;
 
+// To ensure 50 guaranteed offline-cached options without rate-limits!
+const EXTRA_GIFS = [
+  "https://cdn2.thecatapi.com/images/2n.gif", "https://cdn2.thecatapi.com/images/12r.gif",
+  "https://cdn2.thecatapi.com/images/3qm.gif", "https://cdn2.thecatapi.com/images/4bo.gif",
+  "https://cdn2.thecatapi.com/images/4gq.gif", "https://cdn2.thecatapi.com/images/4li.gif",
+  "https://cdn2.thecatapi.com/images/4tg.gif", "https://cdn2.thecatapi.com/images/MTcxMjU0MQ.gif",
+  "https://cdn2.thecatapi.com/images/MTc1Nzk4OA.gif", "https://cdn2.thecatapi.com/images/MTc2MjA2NA.gif",
+  "https://media.giphy.com/media/l2JHRhAtnJSDNJ2py/giphy.gif", "https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif",
+  "https://media.giphy.com/media/11sBLVxIRvnAwe/giphy.gif", "https://media.giphy.com/media/xT0Gqjym2cZMIj4HxC/giphy.gif",
+  "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif", "https://media.giphy.com/media/l0HlAL5R9Jv9hJ5UA/giphy.gif",
+  "https://media.giphy.com/media/nDSlfqf0GN5PANIRPK/giphy.gif", "https://media.giphy.com/media/3o7QSPx34WzJ2QJmQo/giphy.gif",
+  "https://media.giphy.com/media/L95W4wv8nnb9K/giphy.gif", "https://media.giphy.com/media/l4pMattUYTTM7qpIk/giphy.gif",
+  "https://media.giphy.com/media/26gsjCZpPolPr3sBy/giphy.gif", "https://media.giphy.com/media/HcjKo8qQ8H5l4hEQ1n/giphy.gif",
+  "https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif", "https://media.giphy.com/media/l8ooOxhcItowwLPuZn/giphy.gif",
+  "https://media.giphy.com/media/wAxlCmeX1ri1y/giphy.gif", "https://media.giphy.com/media/QSTpQ1tW6Wqf8iFjXb/giphy.gif",
+  "https://media.giphy.com/media/fSSbirL3Ew0zC/giphy.gif", "https://media.giphy.com/media/T8n0h3G6oQZpK/giphy.gif",
+  "https://media.giphy.com/media/2rtQMJvhzOnRe/giphy.gif", "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif"
+];
+EXTRA_GIFS.forEach((url, i) => {
+  GIF_URLS.push({ name: 'Extra Reaction ' + (i + 1), url: url });
+});
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentNickname = localStorage.getItem(STORAGE_KEY) || '';
 let previewedAnimation = null;
