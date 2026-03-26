@@ -45,60 +45,38 @@ function writeMessages(messages) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(messages, null, 2));
 }
 
-// ── Animation generator ───────────────────────────────────────────────────────
-async function generateAnimation(userPrompt) {
-  const message = await anthropic.messages.create({
+// ── AI-powered Animation Search ───────────────────────────────────────────────
+async function extractSearchTerms(userPrompt) {
+  const msg = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    system: `You are an elite creative web graphics engineer building high-end, 60fps cinematic animations for a farewell office party web app called "Rob's Outta Here Fiesta".
-
-Your job: Generate a COMPLETE, self-contained HTML document serving as a visually stunning interactive animation based on the user's prompt.
-
-SUPERCHARGED CAPABILITIES & STRICT RULES:
-- You have FULL ACCESS to the world's best animation libraries via these CDNs. YOU MUST EXPLICITLY IMPORT THEM in the <head> if you need them to make the animation amazing:
-  * GSAP: <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-  * Three.js: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  * Canvas Confetti: <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  * Matter.js (2D Physics): <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-- Return ONLY raw HTML — ABSOLUTELY NO MARKDOWN CODE FENCES (e.g. no \\\`\\\`\\\`html or \\\`\\\`\\\`), no text explanation. Just the raw <!DOCTYPE html> string.
-- The animation must look incredibly premium, colorful, and highly entertaining (this is a party!).
-- Keep the background fully transparent or vibrant — avoid dark blacks.
-- Animation must endlessly loop or reach a spectacular resting state.
-- Ensure all elements fit within the screen bounds (\`body { margin: 0; overflow: hidden; width: 100vw; height: 100vh; }\`).
-- DO NOT use alert(), confirm(), prompt(), localStorage, or cookies.
-
-EXAMPLE PIPELINES: 
-- For "rain of tacos": Import Matter.js and render physical 2D bodies wrapped in taco emojis bouncing around.
-- For "digital rain": Write native canvas code.
-- For "spinning text": Import GSAP and build a staggered bouncing letter timeline. Let your creativity run completely wild!`,
-    messages: [
-      {
-        role: 'user',
-        content: `Create a funny animation for this prompt: "${userPrompt}"`,
-      },
-    ],
+    max_tokens: 100,
+    system: `You are a GIF search query optimizer for a farewell party app. 
+Convert the user's animation prompt into 3-5 ideal search keywords for finding funny, relevant GIFs.
+Rules:
+- Return ONLY the search query string, nothing else (no explanation, no quotes)
+- Make it playful and party-themed if applicable
+- Keep it under 6 words
+- Focus on the visual subject/action`,
+    messages: [{ role: 'user', content: userPrompt }]
   });
+  return msg.content[0].text.trim();
+}
 
-  let html = message.content[0].text;
-  
-  // Impregnable extraction: Grabs strictly from <html to </html> ignoring EVERYTHING else
-  const lower = html.toLowerCase();
-  const startIdx = lower.indexOf('<html');
-  const endIdx = lower.lastIndexOf('</html>');
-  
-  if (startIdx !== -1 && endIdx !== -1) {
-    html = '<!DOCTYPE html>\n' + html.substring(startIdx, endIdx + 7);
-  } else {
-    // Fallback: aggressively strip backticks anywhere if <html> tags are missing
-    html = html.replace(/```html/gi, '').replace(/```/g, '').trim();
-  }
-
-  // Sanity check
-  if (!html.toLowerCase().includes('<html') && !html.toLowerCase().includes('<body')) {
-    throw new Error('Generated content does not appear to be valid HTML');
-  }
-
-  return html;
+async function searchGiphy(query, limit = 8) {
+  // Giphy public beta key - safe for demo use
+  const GIPHY_KEY = 'dc6zaTOxFJmzC';
+  const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g&lang=en`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Giphy API error');
+  const data = await res.json();
+  return data.data.map(gif => ({
+    id: gif.id,
+    title: gif.title,
+    url: gif.images.downsized_medium?.url || gif.images.fixed_height?.url || gif.images.original.url,
+    preview: gif.images.fixed_height_small?.url || gif.images.fixed_height?.url,
+    width: gif.images.fixed_height?.width,
+    height: gif.images.fixed_height?.height,
+  }));
 }
 
 // ── API Routes ────────────────────────────────────────────────────────────────
@@ -109,20 +87,37 @@ app.get('/api/messages', (req, res) => {
   res.json([...messages].reverse());
 });
 
-// POST /api/preview-animation  – generate animation without saving
-app.post('/api/preview-animation', async (req, res) => {
+// POST /api/search-animation – AI semantic search for GIF
+app.post('/api/search-animation', async (req, res) => {
   const { prompt } = req.body;
-  if (!prompt || !prompt.trim()) {
-    return res.status(400).json({ error: 'Animation prompt is required' });
-  }
+  if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt required' });
   try {
-    const animation = await generateAnimation(prompt.trim());
-    res.json({ animation });
+    const query = await extractSearchTerms(prompt.trim());
+    const results = await searchGiphy(query);
+    res.json({ query, results });
   } catch (err) {
-    console.error('Animation generation error:', err.message);
-    res.status(500).json({ error: 'Failed to generate animation. Check your API key and try again.' });
+    console.error('Search animation error:', err.message);
+    res.status(500).json({ error: 'Failed to search for animations. Try again.' });
   }
 });
+
+// Legacy /api/preview-animation endpoint — now redirects to search
+app.post('/api/preview-animation', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt required' });
+  try {
+    const query = await extractSearchTerms(prompt.trim());
+    const results = await searchGiphy(query, 1);
+    if (!results.length) throw new Error('No results found');
+    const gifUrl = results[0].url;
+    const animation = `<!DOCTYPE html><html><head><style>body{margin:0;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh;background:transparent;}</style></head><body><img src="${gifUrl}" style="width:100%;height:100%;object-fit:cover;" /></body></html>`;
+    res.json({ animation });
+  } catch (err) {
+    res.status(500).json({ error: 'Search failed: ' + err.message });
+  }
+});
+
+
 
 // POST /api/messages  – create and save a new message
 app.post('/api/messages', async (req, res) => {

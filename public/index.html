@@ -131,57 +131,51 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label>🎨 Select Animation Type</label>
-        <div class="anim-type-toggle">
-          <label><input type="radio" name="anim-type" value="ai" checked> AI Generated</label>
-          <label><input type="radio" name="anim-type" value="gallery"> Choose from Gallery</label>
-        </div>
-      </div>
-
+      <!-- AI-Powered Animation Search -->
       <div class="form-group" id="ai-prompt-group">
         <label for="anim-prompt" style="display: flex; justify-content: space-between; align-items: center;">
-          🎨 Describe Your Animation
+          🎬 Find an Animation GIF
           <button id="btn-surprise-prompt" class="btn btn-ghost" style="font-size: 0.8rem; padding: 2px 8px;">🎲 Surprise Me</button>
         </label>
-        <p class="field-hint">
-          Get wild! Try: <em>"confetti raining from the sky"</em>, <em>"a tiny rocket launching into space"</em>,
-          <em>"dancing tacos celebrating"</em>, <em>"fireworks over a city"</em>…
-        </p>
-        <textarea
-          id="anim-prompt"
-          placeholder="Describe any animation you can imagine — Claude will bring it to life!"
-          rows="3"
-          maxlength="300"
-        ></textarea>
-      </div>
+        <p class="field-hint">AI will search for the perfect GIF — try <em>"dancing cactus"</em>, <em>"rocket launch"</em>, <em>"confetti party"</em>…</p>
+        <div style="display:flex; gap:8px;">
+          <input
+            type="text"
+            id="anim-prompt"
+            placeholder="Describe an animation..."
+            style="flex:1; padding:10px 14px; border:2px solid #e0e0e0; border-radius:10px; font-size:0.95rem; outline:none;"
+            autocomplete="off"
+          />
+          <button id="btn-preview" class="btn btn-secondary" style="white-space:nowrap;">🔍 Search</button>
+        </div>
 
-      <div class="form-group" id="gallery-group" style="display:none">
-        <label style="display:flex; justify-content:space-between; align-items:center;">
-          <span>🖼️ Select a Funny GIF</span>
-          <div style="display:flex; gap: 5px;">
-            <button id="btn-prev-gallery" type="button" class="btn btn-ghost" style="color:var(--purple); background:#f0edff; font-size:0.8rem; padding:4px 8px;">◀ Prev</button>
-            <button id="btn-next-gallery" type="button" class="btn btn-ghost" style="color:var(--purple); background:#f0edff; font-size:0.8rem; padding:4px 8px;">Next ▶</button>
+        <!-- Search results grid -->
+        <div id="search-results" style="display:none; margin-top:14px;">
+          <p style="font-size:0.8rem; color:#888; margin-bottom:8px;">Results for: <strong id="search-query-label"></strong> — Click one to select it!</p>
+          <div id="search-results-grid" style="display:grid; grid-template-columns: repeat(2,1fr); gap:8px; max-height:320px; overflow-y:auto;"></div>
+        </div>
+
+        <!-- Gallery (classic) -->
+        <div id="gallery-group" style="display:none; margin-top:14px;">
+          <label style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><span>🖼️ Classic Gallery</span>
+            <div style="display:flex;gap:5px;">
+              <button id="btn-prev-gallery" type="button" class="btn btn-ghost" style="color:var(--purple);background:#f0edff;font-size:0.8rem;padding:4px 8px;">◀ Prev</button>
+              <button id="btn-next-gallery" type="button" class="btn btn-ghost" style="color:var(--purple);background:#f0edff;font-size:0.8rem;padding:4px 8px;">Next ▶</button>
+            </div>
+          </label>
+          <div class="lottie-gallery" id="lottie-gallery"><!-- Populated by JS --></div>
+        </div>
+
+        <!-- Selected preview -->
+        <div id="preview-area" style="display:none; margin-top:14px;">
+          <h3 class="preview-title">✅ Selected Animation</h3>
+          <div class="preview-frame-wrap">
+            <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin" title="Animation Preview" scrolling="no"></iframe>
           </div>
-        </label>
-        <div class="lottie-gallery" id="lottie-gallery">
-          <!-- Populated by JS -->
+          <p class="preview-hint">Love it? Hit <strong>Post to the Wall!</strong> 🎉<br/>Not feeling it? Search again.</p>
         </div>
       </div>
 
-      <!-- Preview area -->
-      <div id="preview-area" style="display:none">
-        <h3 class="preview-title">🎬 Animation Preview</h3>
-        <div class="preview-frame-wrap">
-          <iframe
-            id="preview-iframe"
-            sandbox="allow-scripts"
-            title="Animation Preview"
-            scrolling="no"
-          ></iframe>
-        </div>
-        <p class="preview-hint">Love it? Hit <strong>Post to the Wall!</strong> 🎉<br />Not feeling it? Change your prompt and regenerate.</p>
-      </div>
 
       <!-- Loading indicator -->
       <div id="modal-loading" class="modal-loading" style="display:none">

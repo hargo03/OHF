@@ -687,7 +687,11 @@ msgText.addEventListener('input', () => {
   msgChar.textContent = msgText.value.length;
 });
 
-// ── Modal: Preview Animation ──────────────────────────────────────────────────
+// ── Modal: AI-Powered GIF Search ─────────────────────────────────────────────
+function buildGifHtmlWrapper(url) {
+  return `<!DOCTYPE html><html><head><style>body{margin:0;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh;background:transparent;} img{width:100%;height:100%;object-fit:cover;}</style></head><body><img src="${url}" /></body></html>`;
+}
+
 btnPreview.addEventListener('click', async () => {
   const prompt = animPrompt.value.trim();
   if (!prompt) {
@@ -697,31 +701,55 @@ btnPreview.addEventListener('click', async () => {
     return;
   }
 
-  setModalLoading(true, 'Claude is conjuring your animation… ✨');
+  setModalLoading(true, 'AI is finding the perfect GIF for you… 🔍');
   hideModalError();
   previewArea.style.display = 'none';
+  $('search-results').style.display = 'none';
   btnPost.disabled = true;
 
   try {
-    const res  = await fetch('/api/preview-animation', {
+    const res = await fetch('/api/search-animation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to generate animation');
+    if (!res.ok) throw new Error(data.error || 'Search failed');
 
-    previewedAnimation     = data.animation;
-    previewIframe.srcdoc   = data.animation;
-    previewArea.style.display = 'block';
-    btnPost.disabled = false;
-    showToast('Animation ready! 🎬 Check the preview!');
+    // Show query used
+    $('search-query-label').textContent = data.query;
+    $('search-results').style.display = 'block';
+
+    // Render result grid
+    const grid = $('search-results-grid');
+    grid.innerHTML = data.results.map(gif => `
+      <div class="gif-result-item" data-url="${gif.url}" onclick="selectGifResult(this, '${gif.url}')" style="cursor:pointer; border-radius:10px; overflow:hidden; border:3px solid transparent; transition: border-color 0.2s; aspect-ratio:4/3; background:#f5f5f5;">
+        <img src="${gif.preview || gif.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" title="${gif.title}" />
+      </div>
+    `).join('');
+
+    showToast(`Found ${data.results.length} animations! Click one to select it.`);
   } catch (err) {
-    showModalError(`Animation failed: ${err.message}`);
+    showModalError(`Search failed: ${err.message}`);
   } finally {
     setModalLoading(false);
   }
 });
+
+window.selectGifResult = (el, url) => {
+  // Highlight selected
+  document.querySelectorAll('.gif-result-item').forEach(i => i.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--purple)';
+
+  // Build gif HTML wrapper and show preview
+  const animation = buildGifHtmlWrapper(url);
+  previewedAnimation = animation;
+  selectedLottieHtml = animation;
+  previewIframe.srcdoc = animation;
+  previewArea.style.display = 'block';
+  btnPost.disabled = false;
+  showToast('Animation selected! ✅');
+};
 
 // ── Modal: Post / Edit Message ────────────────────────────────────────────────
 btnPost.addEventListener('click', async () => {
