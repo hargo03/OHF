@@ -49,7 +49,7 @@ function writeMessages(messages) {
 async function generateAnimation(userPrompt) {
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: `You are an elite creative web graphics engineer building high-end, 60fps cinematic animations for a farewell office party web app called "Rob's Outta Here Fiesta".
 
 Your job: Generate a COMPLETE, self-contained HTML document serving as a visually stunning interactive animation based on the user's prompt.
