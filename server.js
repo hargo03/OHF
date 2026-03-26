@@ -78,14 +78,12 @@ EXAMPLE STYLE: If asked for "rain of tacos", generate falling taco emoji shapes 
     ],
   });
 
-  let html = message.content[0].text.trim();
-
-  // Strip markdown code fences if Claude wrapped it
-  html = html
-    .replace(/^```html\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim();
+  let html = message.content[0].text;
+  
+  if (html.toLowerCase().includes('```html')) {
+    html = html.replace(/```html/gi, '').replace(/```/g, '');
+  }
+  html = html.trim();
 
   // Sanity check — must look like HTML
   if (!html.toLowerCase().includes('<html')) {
