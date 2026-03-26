@@ -331,7 +331,7 @@ function setWallState(state) {
   stateLoading.style.display = state === 'loading' ? 'flex' : 'none';
   stateEmpty.style.display   = state === 'empty'   ? 'flex' : 'none';
   stateError.style.display   = state === 'error'   ? 'flex' : 'none';
-  messagesGrid.style.display = state === 'messages' ? 'grid' : 'none';
+  messagesGrid.style.display = state === 'messages' ? 'block' : 'none';
 }
 
 function renderMessages(msgs) {
@@ -343,8 +343,11 @@ function renderMessages(msgs) {
   setWallState('messages');
 
   msgs.forEach(m => {
-    const iframe = document.querySelector(`[data-id="${m.id}"] iframe`);
-    if (iframe && m.animation) {
+    // Target specifically the card-front iframe (first iframe inside .card-front)
+    const card = document.querySelector(`[data-id="${m.id}"]`);
+    if (!card || !m.animation) return;
+    const iframe = card.querySelector('.card-front iframe.card-anim');
+    if (iframe) {
       iframe.srcdoc = m.animation;
     }
   });
@@ -484,7 +487,7 @@ function buildCard(msg, index) {
           </div>
           <iframe
             class="card-anim"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
             title="Animation by ${nick}"
             scrolling="no"
             loading="lazy"
