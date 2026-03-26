@@ -328,6 +328,18 @@ function renderMessages(msgs) {
   });
 
   attachDragListeners();
+  updateCanvasHeight();
+}
+
+function updateCanvasHeight() {
+  const container = document.querySelector('.messages-grid');
+  if (!container) return;
+  let maxBottom = window.innerHeight; // minimum viewport height
+  document.querySelectorAll('.message-card').forEach(c => {
+    const bottom = c.offsetTop + c.offsetHeight;
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  container.style.height = `${maxBottom + 300}px`; // Give extra runway
 }
 
 function attachDragListeners() {
@@ -357,9 +369,8 @@ function attachDragListeners() {
         let newY = initialTop + (ev.clientY - startY);
         
         const maxW = containerRect.width - card.offsetWidth;
-        const maxH = containerRect.height - card.offsetHeight;
         if (newX < 0) newX = 0; if (newX > maxW) newX = maxW;
-        if (newY < 0) newY = 0; if (newY > maxH) newY = maxH;
+        if (newY < 0) newY = 0; 
         
         card.style.left = `${newX}px`;
         card.style.top = `${newY}px`;
@@ -373,16 +384,18 @@ function attachDragListeners() {
         card.style.transition = '';
         
         const finalLeftPerc = (card.offsetLeft / containerRect.width) * 100;
-        const finalTopPerc = (card.offsetTop / containerRect.height) * 100;
+        const finalTopPx = card.offsetTop;
         card.style.left = `${finalLeftPerc}%`;
-        card.style.top = `${finalTopPerc}%`;
+        card.style.top = `${finalTopPx}px`;
         
+        updateCanvasHeight();
+
         const id = card.getAttribute('data-id');
         try {
           await fetch(`/api/messages/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ x: finalLeftPerc, y: finalTopPerc })
+            body: JSON.stringify({ x: finalLeftPerc, y: finalTopPx })
           });
         } catch (err) {
           console.error('Failed to save pos:', err);
@@ -403,8 +416,14 @@ function buildCard(msg, index) {
   const prompt  = escapeHtml(msg.animationPrompt);
   const time    = formatTime(msg.timestamp);
 
-  const x = msg.x || (Math.random() * 70 + 5);
-  const y = msg.y || (Math.random() * 50 + 5);
+  // X keeps %, Y uses absolute PX for infinite vertical expansion
+  const x = msg.x != null ? msg.x : (Math.random() * 70 + 5);
+  let y = msg.y;
+  if (y == null) {
+      const container = document.querySelector('.messages-grid');
+      const maxH = container ? Math.max(container.offsetHeight, window.innerHeight) : window.innerHeight;
+      y = Math.random() * (maxH - 300) + 50; 
+  }
 
   const isOwner = ownedIds.includes(msg.id);
 
@@ -417,7 +436,7 @@ function buildCard(msg, index) {
   ` : '';
 
   return `
-    <article class="message-card ${theme}" data-id="${msg.id}" style="left: ${x}%; top: ${y}%;">
+    <article class="message-card ${theme}" data-id="${msg.id}" style="left: ${x}%; top: ${y}px;">
       <div class="card-header">
         <div class="card-avatar">${avatar}</div>
         <span class="card-nickname">${nick}</span>
@@ -493,13 +512,13 @@ btnSaveWall.addEventListener('click', async () => {
       const prompt  = escapeHtml(msg.animationPrompt);
       const time    = formatTime(msg.timestamp);
       
-      const x = msg.x || 10;
-      const y = msg.y || 10;
+      const x = msg.x != null ? msg.x : 10;
+      const y = msg.y != null ? msg.y : 50;
 
       const encodedAnim = btoa(unescape(encodeURIComponent(msg.animation)));
       
       gridHtml += `
-        <article class="message-card ${theme}" style="left: ${x}%; top: ${y}%;">
+        <article class="message-card ${theme}" style="left: ${x}%; top: ${y}px;">
           <div class="card-header">
             <div class="card-avatar">${avatar}</div>
             <span class="card-nickname">${nick}</span>

@@ -176,7 +176,8 @@ body {
   height: 100vh;
   padding: 24px;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* ── Center States ─────────────────────────────────── */
