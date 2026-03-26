@@ -435,24 +435,62 @@ function buildCard(msg, index) {
     </div>
   ` : '';
 
+  const reactions = msg.reactions || { fire: 0, heart: 0, sad: 0 };
+  const replies = msg.replies || [];
+  
+  let dominantClass = '';
+  if (reactions.fire > reactions.heart && reactions.fire > reactions.sad) dominantClass = 'rx-fire';
+  else if (reactions.heart > reactions.fire && reactions.heart > reactions.sad) dominantClass = 'rx-heart';
+  else if (reactions.sad > reactions.fire && reactions.sad > reactions.heart) dominantClass = 'rx-sad';
+  
+  const repliesHtml = replies.map(r => `
+    <div class="reply-item">
+      <div class="reply-author">${escapeHtml(r.author)}</div>
+      <div class="reply-text">${escapeHtml(r.text)}</div>
+    </div>
+  `).join('');
+
   return `
-    <article class="message-card ${theme}" data-id="${msg.id}" style="left: ${x}%; top: ${y}px;">
-      <div class="card-header">
-        <div class="card-avatar">${avatar}</div>
-        <span class="card-nickname">${nick}</span>
-        <span class="card-time">${time}</span>
-      </div>
-      <iframe
-        class="card-anim"
-        sandbox="allow-scripts"
-        title="Animation by ${nick}"
-        scrolling="no"
-        loading="lazy"
-      ></iframe>
-      <div class="card-body">
-        <p class="card-message">${message}</p>
-        <span class="card-prompt-tag">🎨 ${prompt}</span>
-        ${actionsHtml}
+    <article class="message-card ${theme} ${dominantClass}" data-id="${msg.id}" style="left: ${x}%; top: ${y}px;">
+      <div class="card-inner">
+        <div class="card-front">
+          <div class="card-header">
+            <div class="card-avatar">${avatar}</div>
+            <span class="card-nickname">${nick}</span>
+            <span class="card-time">${time}</span>
+            <button class="btn-action" onclick="flipCard('${msg.id}')" title="Replies" style="margin-left:auto; background:none; border:none; padding:0; font-size:1.1rem; opacity:0.8;">💬 ${replies.length}</button>
+          </div>
+          <iframe
+            class="card-anim"
+            sandbox="allow-scripts"
+            title="Animation by ${nick}"
+            scrolling="no"
+            loading="lazy"
+          ></iframe>
+          <div class="card-body">
+            <p class="card-message">${message}</p>
+            <span class="card-prompt-tag">🎨 ${prompt}</span>
+            ${actionsHtml}
+          </div>
+          <div class="card-stickers">
+            <button class="sticker-btn" onclick="reactCard('${msg.id}', 'heart')">❤️ <span>${reactions.heart}</span></button>
+            <button class="sticker-btn" onclick="reactCard('${msg.id}', 'fire')">🔥 <span>${reactions.fire}</span></button>
+            <button class="sticker-btn" onclick="reactCard('${msg.id}', 'sad')">😢 <span>${reactions.sad}</span></button>
+          </div>
+        </div>
+        <div class="card-back">
+          <div class="card-header" style="background:var(--purple); color:white; border-radius:0;">
+            <span class="card-nickname">Thread for ${nick}</span>
+            <button class="btn-action" onclick="flipCard('${msg.id}')" style="margin-left:auto; background:none; border:none; color:white; font-size:1.1rem; padding:0;">✕</button>
+          </div>
+          <div class="replies-list">
+            ${repliesHtml ? repliesHtml : '<p style="color:#999; font-size:0.9rem; text-align:center; padding-top:20px;">No replies yet. Be the first!</p>'}
+          </div>
+          <div class="reply-input-area">
+            <input type="text" id="reply-text-${msg.id}" placeholder="Type a reply..." autocomplete="off">
+            <button onclick="postReply('${msg.id}')">Post</button>
+          </div>
+        </div>
       </div>
     </article>
   `;
@@ -742,3 +780,85 @@ if (currentNickname) {
 } else {
   showSignin();
 }
+
+// ── Ultimate Expansion Hooks ──────────────────────────────────────────────────
+const btnPrintWall = document.getElementById('btn-print-wall');
+if(btnPrintWall) btnPrintWall.addEventListener('click', () => window.print());
+
+const GOLDEN_PROMPTS = [
+  "A Matrix digital rain of the word GOODBYE",
+  "A retro 90s synthwave sports car driving into a neon sunset",
+  "A pixel art rocket ship launching into starry space",
+  "A bouncy DVD logo hitting the corner of the screen",
+  "A hilarious ragdoll physics character falling down endless stairs",
+  "Confetti explosion with dancing tacos and a disco ball"
+];
+const btnSurprise = document.getElementById('btn-surprise-prompt');
+if(btnSurprise) btnSurprise.addEventListener('click', (e) => {
+  e.preventDefault();
+  animPrompt.value = GOLDEN_PROMPTS[Math.floor(Math.random() * GOLDEN_PROMPTS.length)];
+});
+
+const wireSpice = (id, flavor) => {
+  const btn = document.getElementById(id);
+  if(!btn) return;
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const text = msgText.value.trim();
+    if(!text) return showToast('Type a message first to spice it up! 🌶️', 3000);
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/spice', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ text, flavor })
+      });
+      const data = await res.json();
+      if(res.ok && data.spicedText) {
+        msgText.value = data.spicedText;
+        msgChar.textContent = msgText.value.length;
+      } else {
+        showToast(data.error || 'Failed to spice message.', 3000);
+      }
+    } catch(err) {
+      showToast('Network error spicing message.', 3000);
+    }
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  });
+};
+wireSpice('btn-spice-roast', 'roast');
+wireSpice('btn-spice-hype', 'hype');
+wireSpice('btn-spice-pirate', 'pirate');
+
+// Inline UI Handlers via globals
+window.flipCard = (id) => {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if(el) el.classList.toggle('flipped');
+};
+
+window.reactCard = async (id, type) => {
+  try {
+    const res = await fetch(`/api/messages/${id}/react`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type })
+    });
+    if(res.ok) loadMessages();
+  } catch(e) {}
+};
+
+window.postReply = async (id) => {
+  const input = document.getElementById(`reply-text-${id}`);
+  if(!input || !input.value.trim()) return;
+  try {
+    const res = await fetch(`/api/messages/${id}/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author: currentNickname || 'Guest', text: input.value.trim() })
+    });
+    if(res.ok) loadMessages();
+  } catch(e) {}
+};

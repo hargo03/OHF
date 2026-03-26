@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#E94560" />
 </head>
 <body>
 
@@ -58,6 +60,9 @@
           <span class="user-greeting">Hey, <strong id="user-name-display"></strong>! 👋</span>
           <button id="btn-save-wall" class="btn btn-secondary">
             💾 Save Wall
+          </button>
+          <button id="btn-print-wall" class="btn btn-ghost" style="border: 1px solid rgba(255,255,255,0.3);">
+            🖨️ Print Yearbook
           </button>
           <button id="btn-add-message" class="btn btn-primary">
             ✏️ Add Your Message
@@ -116,7 +121,14 @@
           rows="4"
           maxlength="1000"
         ></textarea>
-        <span class="char-count"><span id="msg-char">0</span>/1000</span>
+        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+          <div class="spice-actions" style="display: flex; gap: 8px;">
+            <button id="btn-spice-roast" class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.8rem; background: #fff1f0; color: #ff4d4f;">🔥 Roast</button>
+            <button id="btn-spice-hype" class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.8rem; background: #f6ffed; color: #52c41a;">🚀 Hype</button>
+            <button id="btn-spice-pirate" class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.8rem; background: #e6f7ff; color: #1890ff;">🏴‍☠️ Pirate</button>
+          </div>
+          <span class="char-count"><span id="msg-char">0</span>/1000</span>
+        </div>
       </div>
 
       <div class="form-group">
@@ -128,7 +140,10 @@
       </div>
 
       <div class="form-group" id="ai-prompt-group">
-        <label for="anim-prompt">🎨 Describe Your Animation</label>
+        <label for="anim-prompt" style="display: flex; justify-content: space-between; align-items: center;">
+          🎨 Describe Your Animation
+          <button id="btn-surprise-prompt" class="btn btn-ghost" style="font-size: 0.8rem; padding: 2px 8px;">🎲 Surprise Me</button>
+        </label>
         <p class="field-hint">
           Get wild! Try: <em>"confetti raining from the sky"</em>, <em>"a tiny rocket launching into space"</em>,
           <em>"dancing tacos celebrating"</em>, <em>"fireworks over a city"</em>…
@@ -195,6 +210,15 @@
   <!-- Toast notification -->
   <div id="toast" class="toast" aria-live="polite"></div>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.error('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

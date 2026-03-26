@@ -80,9 +80,10 @@ EXAMPLE STYLE: If asked for "rain of tacos", generate falling taco emoji shapes 
 
   let html = message.content[0].text;
   
-  if (html.toLowerCase().includes('```html')) {
-    html = html.replace(/```html/gi, '').replace(/```/g, '');
-  }
+  // Robustly rip out ANY markdown fences regardless of tag
+  html = html.replace(/^[\s\n]*```[\w]*[\s\n]*/i, '');
+  html = html.replace(/[\s\n]*```[\s\n]*$/i, '');
+  
   html = html.trim();
 
   // Sanity check — must look like HTML
@@ -143,15 +144,17 @@ app.post('/api/messages', async (req, res) => {
     const messages = readMessages();
 
     const newMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      nickname: nickname.trim(),
-      message: message.trim(),
-      animationPrompt: animationPrompt ? animationPrompt.trim() : 'Gallery Selection',
-      animation,
-      x: typeof x === 'number' ? x : Math.floor(Math.random() * 70) + 5,
-      y: typeof y === 'number' ? y : Math.floor(Math.random() * 50) + 5,
-      timestamp: new Date().toISOString(),
-    };
+    id: Date.now().toString(),
+    nickname: nickname.trim(),
+    message: message.trim(),
+    animationPrompt: animationPrompt?.trim() || '',
+    animation,
+    x: typeof x === 'number' ? x : Math.floor(Math.random() * 70) + 5,
+    y: typeof y === 'number' ? y : Math.floor(Math.random() * 800) + 50,
+    timestamp: new Date().toISOString(),
+    reactions: { fire: 0, heart: 0, sad: 0 },
+    replies: []
+  };
 
     messages.push(newMessage);
     writeMessages(messages);
@@ -211,6 +214,80 @@ app.put('/api/messages/:id', async (req, res) => {
   } catch (err) {
     console.error('Error updating message:', err.message);
     res.status(500).json({ error: 'Failed to update message.' });
+  }
+});
+
+// PUT /api/messages/:id/react – increment a reaction stamp
+app.put('/api/messages/:id/react', async (req, res) => {
+  const { id } = req.params;
+  const { type } = req.body; // 'fire', 'heart', or 'sad'
+  
+  if (!['fire', 'heart', 'sad'].includes(type)) {
+    return res.status(400).json({ error: 'Invalid reaction type' });
+  }
+
+  let messages = readMessages();
+  const index = messages.findIndex(m => m.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Message not found' });
+  }
+
+  if (!messages[index].reactions) messages[index].reactions = { fire: 0, heart: 0, sad: 0 };
+  messages[index].reactions[type] += 1;
+  writeMessages(messages);
+  
+  res.json({ success: true, reactions: messages[index].reactions });
+});
+
+// POST /api/messages/:id/reply - add a thread reply
+app.post('/api/messages/:id/reply', async (req, res) => {
+  const { id } = req.params;
+  const { author, text } = req.body;
+  
+  if (!author?.trim() || !text?.trim()) {
+    return res.status(400).json({ error: 'Author and text are required' });
+  }
+
+  let messages = readMessages();
+  const index = messages.findIndex(m => m.id === id);
+
+  if (index === -1) return res.status(404).json({ error: 'Message not found' });
+
+  if (!messages[index].replies) messages[index].replies = [];
+  
+  const newReply = {
+    id: Date.now().toString(),
+    author: author.trim(),
+    text: text.trim(),
+    timestamp: new Date().toISOString()
+  };
+
+  messages[index].replies.push(newReply);
+  writeMessages(messages);
+  res.json({ success: true, reply: newReply });
+});
+
+// POST /api/spice - AI rewrite for messages
+app.post('/api/spice', async (req, res) => {
+  const { text, flavor } = req.body;
+  if (!text?.trim() || !flavor) return res.status(400).json({ error: 'Text and flavor required' });
+  
+  let systemPrompt = "You are a witty co-worker text rewriting bot.";
+  if (flavor === 'roast') systemPrompt = "Rewrite the user's farewell message as a hilarious, slightly savage (but SFW) roast about them leaving. Keep it under 2 sentences.";
+  if (flavor === 'hype') systemPrompt = "Rewrite the user's farewell message as a desperately overly-enthusiastic, corporate-jargon-filled hype speech. Keep it under 2 sentences.";
+  if (flavor === 'pirate') systemPrompt = "Rewrite the user's farewell message strictly like an aggressive pirate saying farewell. Keep it under 2 sentences.";
+
+  try {
+    const aiRes = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 250,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: text }]
+    });
+    res.json({ spicedText: aiRes.content[0].text.trim() });
+  } catch (err) {
+    res.status(500).json({ error: 'Spicing failed' });
   }
 });
 
