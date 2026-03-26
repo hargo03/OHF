@@ -62,21 +62,19 @@ Rules:
   return msg.content[0].text.trim();
 }
 
-async function searchGiphy(query, limit = 8) {
-  // Giphy public beta key - safe for demo use
-  const GIPHY_KEY = 'dc6zaTOxFJmzC';
-  const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g&lang=en`;
+async function searchTenor(query, limit = 8) {
+  // Tenor public demo key — works without registration
+  const TENOR_KEY = 'LIVDSRZULELA';
+  const url = `https://api.tenor.com/v1/search?q=${encodeURIComponent(query)}&key=${TENOR_KEY}&limit=${limit}&contentfilter=medium&mediafilter=minimal`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error('Giphy API error');
+  if (!res.ok) throw new Error(`Tenor API error: ${res.status}`);
   const data = await res.json();
-  return data.data.map(gif => ({
+  return (data.results || []).map(gif => ({
     id: gif.id,
     title: gif.title,
-    url: gif.images.downsized_medium?.url || gif.images.fixed_height?.url || gif.images.original.url,
-    preview: gif.images.fixed_height_small?.url || gif.images.fixed_height?.url,
-    width: gif.images.fixed_height?.width,
-    height: gif.images.fixed_height?.height,
-  }));
+    url: gif.media?.[0]?.gif?.url || gif.media?.[0]?.mediumgif?.url,
+    preview: gif.media?.[0]?.tinygif?.url || gif.media?.[0]?.gif?.url,
+  })).filter(g => g.url);
 }
 
 // ── API Routes ────────────────────────────────────────────────────────────────
@@ -93,7 +91,7 @@ app.post('/api/search-animation', async (req, res) => {
   if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt required' });
   try {
     const query = await extractSearchTerms(prompt.trim());
-    const results = await searchGiphy(query);
+    const results = await searchTenor(query);
     res.json({ query, results });
   } catch (err) {
     console.error('Search animation error:', err.message);
@@ -107,15 +105,26 @@ app.post('/api/preview-animation', async (req, res) => {
   if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt required' });
   try {
     const query = await extractSearchTerms(prompt.trim());
-    const results = await searchGiphy(query, 1);
+    const results = await searchTenor(query, 1);
     if (!results.length) throw new Error('No results found');
     const gifUrl = results[0].url;
-    const animation = `<!DOCTYPE html><html><head><style>body{margin:0;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh;background:transparent;}</style></head><body><img src="${gifUrl}" style="width:100%;height:100%;object-fit:cover;" /></body></html>`;
+    const animation = `<!DOCTYPE html><html><head><style>body{margin:0;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh;background:transparent;} img{width:100%;height:100%;object-fit:cover;}</style></head><body><img src="${gifUrl}" /></body></html>`;
     res.json({ animation });
   } catch (err) {
     res.status(500).json({ error: 'Search failed: ' + err.message });
   }
 });
+
+// DELETE /api/messages/:id/admin — hard delete any card (admin use; no auth required on private server)
+app.delete('/api/messages/:id/admin', (req, res) => {
+  const messages = readMessages();
+  const before = messages.length;
+  const filtered = messages.filter(m => m.id !== req.params.id);
+  if (filtered.length === before) return res.status(404).json({ error: 'Message not found' });
+  writeMessages(filtered);
+  res.json({ ok: true, deleted: req.params.id });
+});
+
 
 
 
