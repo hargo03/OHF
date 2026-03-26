@@ -343,7 +343,7 @@ function buildCard(msg, index) {
 window.deleteMessage = async (id) => {
   if (!confirm('Are you sure you want to delete this message?')) return;
   try {
-    const res = await fetch(\`/api/messages/\${id}\`, { method: 'DELETE' });
+    const res = await fetch(`/api/messages/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Delete failed');
     showToast('Message deleted! 🗑️');
     loadMessages();
@@ -385,12 +385,12 @@ window.downloadSnapshot = (id) => {
   const safeNick = escapeHtml(msg.nickname);
   const safeMsg = escapeHtml(msg.message).replace(/\n/g, '<br>');
 
-  const overlayHtml = \`
+  const overlayHtml = `
     <div style="position:fixed; bottom:20px; left:20px; right:20px; background:rgba(255,255,255,0.95); padding:15px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.15); font-family:sans-serif; text-align:center; z-index:999999; backdrop-filter:blur(5px); border:1px solid rgba(0,0,0,0.1);">
-      <h3 style="margin:0 0 5px 0; color:#333; font-size:18px;">From: \${safeNick}</h3>
-      <p style="margin:0; color:#555; font-size:14px; line-height:1.4;">\${safeMsg}</p>
+      <h3 style="margin:0 0 5px 0; color:#333; font-size:18px;">From: ${safeNick}</h3>
+      <p style="margin:0; color:#555; font-size:14px; line-height:1.4;">${safeMsg}</p>
     </div>
-  \`;
+  `;
 
   if (html.toLowerCase().includes('</body>')) {
     html = html.replace('</body>', overlayHtml + '</body>');
@@ -402,7 +402,7 @@ window.downloadSnapshot = (id) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = \`FarewellCard_\${safeNick.replace(/[^A-Za-z0-9]/g, '_')}.html\`;
+  a.download = `FarewellCard_${safeNick.replace(/[^A-Za-z0-9]/g, '_')}.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -480,7 +480,7 @@ btnPreview.addEventListener('click', async () => {
     btnPost.disabled = false;
     showToast('Animation ready! 🎬 Check the preview!');
   } catch (err) {
-    showModalError(\`Animation failed: \${err.message}\`);
+    showModalError(`Animation failed: ${err.message}`);
   } finally {
     setModalLoading(false);
   }
@@ -521,7 +521,7 @@ btnPost.addEventListener('click', async () => {
       payload.customAnimationHtml = selectedLottieHtml;
     }
 
-    const url = editModeId ? \`/api/messages/\${editModeId}\` : '/api/messages';
+    const url = editModeId ? `/api/messages/${editModeId}` : '/api/messages';
     const method = editModeId ? 'PUT' : 'POST';
 
     const res  = await fetch(url, {
@@ -539,7 +539,7 @@ btnPost.addEventListener('click', async () => {
     showToast(editModeId ? 'Message updated! ✨' : 'Your message is on the wall! 🎉🎉🎉', 4000);
     await loadMessages();
   } catch (err) {
-    showModalError(\`Couldn't save: \${err.message}\`);
+    showModalError(`Couldn't save: ${err.message}`);
     btnPost.disabled = false;
   } finally {
     setModalLoading(false);
