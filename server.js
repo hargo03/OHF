@@ -81,14 +81,20 @@ EXAMPLE PIPELINES:
 
   let html = message.content[0].text;
   
-  // Robustly rip out ANY markdown fences regardless of tag
-  html = html.replace(/^[\s\n]*```[\w]*[\s\n]*/i, '');
-  html = html.replace(/[\s\n]*```[\s\n]*$/i, '');
+  // Impregnable extraction: Grabs strictly from <html to </html> ignoring EVERYTHING else
+  const lower = html.toLowerCase();
+  const startIdx = lower.indexOf('<html');
+  const endIdx = lower.lastIndexOf('</html>');
   
-  html = html.trim();
+  if (startIdx !== -1 && endIdx !== -1) {
+    html = '<!DOCTYPE html>\n' + html.substring(startIdx, endIdx + 7);
+  } else {
+    // Fallback: aggressively strip backticks anywhere if <html> tags are missing
+    html = html.replace(/```html/gi, '').replace(/```/g, '').trim();
+  }
 
-  // Sanity check — must look like HTML
-  if (!html.toLowerCase().includes('<html')) {
+  // Sanity check
+  if (!html.toLowerCase().includes('<html') && !html.toLowerCase().includes('<body')) {
     throw new Error('Generated content does not appear to be valid HTML');
   }
 
