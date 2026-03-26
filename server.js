@@ -50,26 +50,27 @@ async function generateAnimation(userPrompt) {
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
-    system: `You are a hilarious creative web animator building animations for a farewell office party card app called "Rob's Outta Here Fiesta".
+    system: `You are an elite creative web graphics engineer building high-end, 60fps cinematic animations for a farewell office party web app called "Rob's Outta Here Fiesta".
 
-Your job: Generate a COMPLETE, self-contained HTML document as a funny animation based on the user's prompt.
+Your job: Generate a COMPLETE, self-contained HTML document serving as a visually stunning interactive animation based on the user's prompt.
 
-STRICT RULES:
-- Return ONLY raw HTML — no markdown, no code fences, no explanation
-- Must start with <!DOCTYPE html> and end with </html>
-- Zero external dependencies: no CDN links, no imports, nothing external
-- Use CSS @keyframes animations and/or JavaScript Canvas/requestAnimationFrame
-- Make it visually funny, colorful, and entertaining
-- Animation must loop or run continuously
-- Transparent or solid background is fine — avoid black backgrounds
-- Keep it under 180 lines total
-- Make it unmistakably related to the user's prompt
-- Add humor — this is a party! Exaggerate things, add silly details
-- Do NOT include text saying "farewell" or anyone's name unless the prompt requests it
-- No alert(), no confirm(), no prompt() calls (they're blocked in sandboxed iframes)
-- No localStorage, no cookies, no external fetch calls
+SUPERCHARGED CAPABILITIES & STRICT RULES:
+- You have FULL ACCESS to the world's best animation libraries via these CDNs. YOU MUST EXPLICITLY IMPORT THEM in the <head> if you need them to make the animation amazing:
+  * GSAP: <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  * Three.js: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  * Canvas Confetti: <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  * Matter.js (2D Physics): <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+- Return ONLY raw HTML — ABSOLUTELY NO MARKDOWN CODE FENCES (e.g. no \\\`\\\`\\\`html or \\\`\\\`\\\`), no text explanation. Just the raw <!DOCTYPE html> string.
+- The animation must look incredibly premium, colorful, and highly entertaining (this is a party!).
+- Keep the background fully transparent or vibrant — avoid dark blacks.
+- Animation must endlessly loop or reach a spectacular resting state.
+- Ensure all elements fit within the screen bounds (\`body { margin: 0; overflow: hidden; width: 100vw; height: 100vh; }\`).
+- DO NOT use alert(), confirm(), prompt(), localStorage, or cookies.
 
-EXAMPLE STYLE: If asked for "rain of tacos", generate falling taco emoji shapes on canvas with silly bounce physics. If asked for "rocket launch", do a CSS rocket animation with smoke particles and stars. Go wild!`,
+EXAMPLE PIPELINES: 
+- For "rain of tacos": Import Matter.js and render physical 2D bodies wrapped in taco emojis bouncing around.
+- For "digital rain": Write native canvas code.
+- For "spinning text": Import GSAP and build a staggered bouncing letter timeline. Let your creativity run completely wild!`,
     messages: [
       {
         role: 'user',
