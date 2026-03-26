@@ -25,7 +25,17 @@ const GIF_URLS = [
   { name: 'Spongebob Party', url: 'https://media.giphy.com/media/nDSlfqf0GN5PANIRPK/giphy.gif' },
   { name: 'Happy Dog', url: 'https://media.giphy.com/media/3o7QSPx34WzJ2QJmQo/giphy.gif' },
   { name: 'Sad Cat', url: 'https://media.giphy.com/media/L95W4wv8nnb9K/giphy.gif' },
-  { name: 'Farewell Salute', url: 'https://media.giphy.com/media/l4pMattUYTTM7qpIk/giphy.gif' }
+  { name: 'Farewell Salute', url: 'https://media.giphy.com/media/l4pMattUYTTM7qpIk/giphy.gif' },
+  { name: 'Bye Bear', url: 'https://media.giphy.com/media/26gsjCZpPolPr3sBy/giphy.gif' },
+  { name: 'Doge Wave', url: 'https://media.giphy.com/media/HcjKo8qQ8H5l4hEQ1n/giphy.gif' },
+  { name: 'Miss You', url: 'https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif' },
+  { name: 'Hugging', url: 'https://media.giphy.com/media/l8ooOxhcItowwLPuZn/giphy.gif' },
+  { name: 'Dance Off', url: 'https://media.giphy.com/media/wAxlCmeX1ri1y/giphy.gif' },
+  { name: 'Kermit Dance', url: 'https://media.giphy.com/media/QSTpQ1tW6Wqf8iFjXb/giphy.gif' },
+  { name: 'Peace Out', url: 'https://media.giphy.com/media/fSSbirL3Ew0zC/giphy.gif' },
+  { name: 'Rolling Away', url: 'https://media.giphy.com/media/T8n0h3G6oQZpK/giphy.gif' },
+  { name: 'Bawling', url: 'https://media.giphy.com/media/2rtQMJvhzOnRe/giphy.gif' },
+  { name: 'Cat Party', url: 'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif' }
 ];
 
 const CARD_THEMES = 6;
@@ -37,6 +47,8 @@ let selectedLottieHtml = null;
 let editModeId = null; 
 let ownedIds = JSON.parse(localStorage.getItem(OWNERSHIP_KEY) || '[]');
 let loadedMessages = []; // Track to rebuild snapshots easily
+let currentGifPage = 0;
+const GIFS_PER_PAGE = 5;
 
 // ── DOM References ────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -75,7 +87,8 @@ const animTypeRadios   = document.querySelectorAll('input[name="anim-type"]');
 const aiPromptGroup    = $('ai-prompt-group');
 const galleryGroup     = $('gallery-group');
 const lottieGallery    = $('lottie-gallery');
-const btnRefreshGallery = $('btn-refresh-gallery');
+const btnPrevGallery   = $('btn-prev-gallery');
+const btnNextGallery   = $('btn-next-gallery');
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function hashStr(str) {
@@ -187,11 +200,11 @@ function buildGifHtml(url) {
 
 // ── Init Lottie Gallery ────────────────────────────────────────────────────────
 function initGallery() {
-  const shuffled = [...GIF_URLS].sort(() => 0.5 - Math.random());
-  const selectedGifs = shuffled.slice(0, 5);
+  const startIdx = currentGifPage * GIFS_PER_PAGE;
+  const selectedGifs = GIF_URLS.slice(startIdx, startIdx + GIFS_PER_PAGE);
 
   lottieGallery.innerHTML = selectedGifs.map((gif, idx) => `
-    <div class="lottie-item" data-url="${gif.url}" data-idx="${idx}">
+    <div class="lottie-item" data-url="${gif.url}" data-idx="${startIdx + idx}">
       <div style="position:absolute; bottom:5px; width:100%; text-align:center; font-size:10px; font-weight:bold; color:white; text-shadow:0px 0px 3px black; z-index:10; pointer-events:none;">${gif.name}</div>
       <iframe srcdoc='${buildGifHtml(gif.url)}'></iframe>
     </div>
@@ -206,10 +219,20 @@ function initGallery() {
       btnPost.disabled = false; 
     });
   });
+
+  if (btnPrevGallery) btnPrevGallery.disabled = currentGifPage === 0;
+  if (btnNextGallery) btnNextGallery.disabled = startIdx + GIFS_PER_PAGE >= GIF_URLS.length;
 }
 initGallery();
-if (btnRefreshGallery) {
-  btnRefreshGallery.addEventListener('click', initGallery);
+if (btnPrevGallery) {
+  btnPrevGallery.addEventListener('click', () => {
+    if (currentGifPage > 0) { currentGifPage--; initGallery(); }
+  });
+}
+if (btnNextGallery) {
+  btnNextGallery.addEventListener('click', () => {
+    if ((currentGifPage + 1) * GIFS_PER_PAGE < GIF_URLS.length) { currentGifPage++; initGallery(); }
+  });
 }
 
 animTypeRadios.forEach(radio => {

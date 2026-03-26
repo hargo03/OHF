@@ -144,7 +144,10 @@
       <div class="form-group" id="gallery-group" style="display:none">
         <label style="display:flex; justify-content:space-between; align-items:center;">
           <span>🖼️ Select a Funny GIF</span>
-          <button id="btn-refresh-gallery" type="button" class="btn btn-ghost" style="color:var(--purple); background:#f0edff; font-size:0.8rem; padding:4px 8px;">🔄 Shuffle</button>
+          <div style="display:flex; gap: 5px;">
+            <button id="btn-prev-gallery" type="button" class="btn btn-ghost" style="color:var(--purple); background:#f0edff; font-size:0.8rem; padding:4px 8px;">◀ Prev</button>
+            <button id="btn-next-gallery" type="button" class="btn btn-ghost" style="color:var(--purple); background:#f0edff; font-size:0.8rem; padding:4px 8px;">Next ▶</button>
+          </div>
         </label>
         <div class="lottie-gallery" id="lottie-gallery">
           <!-- Populated by JS -->
