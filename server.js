@@ -120,7 +120,7 @@ app.post('/api/preview-animation', async (req, res) => {
 
 // POST /api/messages  – create and save a new message
 app.post('/api/messages', async (req, res) => {
-  const { nickname, message, animationPrompt, customAnimationHtml } = req.body;
+  const { nickname, message, animationPrompt, customAnimationHtml, x, y } = req.body;
 
   if (!nickname?.trim() || !message?.trim()) {
     return res.status(400).json({ error: 'Nickname and message are required' });
@@ -150,6 +150,8 @@ app.post('/api/messages', async (req, res) => {
       message: message.trim(),
       animationPrompt: animationPrompt ? animationPrompt.trim() : 'Gallery Selection',
       animation,
+      x: typeof x === 'number' ? x : Math.floor(Math.random() * 70) + 5,
+      y: typeof y === 'number' ? y : Math.floor(Math.random() * 50) + 5,
       timestamp: new Date().toISOString(),
     };
 
@@ -166,10 +168,12 @@ app.post('/api/messages', async (req, res) => {
 // PUT /api/messages/:id – edit a specific message
 app.put('/api/messages/:id', async (req, res) => {
   const { id } = req.params;
-  const { message, animationPrompt, customAnimationHtml } = req.body;
+  const { message, animationPrompt, customAnimationHtml, x, y } = req.body;
 
-  if (!message?.trim()) {
-    return res.status(400).json({ error: 'Message is required' });
+  // Allow coordinate-only updates
+  const isPosUpdate = (typeof x === 'number' && typeof y === 'number');
+  if (!isPosUpdate && !message?.trim()) {
+    return res.status(400).json({ error: 'Message or coordinates are required' });
   }
 
   try {
@@ -190,12 +194,19 @@ app.put('/api/messages/:id', async (req, res) => {
       finalPrompt = animationPrompt.trim();
     }
 
+    // Handle coordinate-only update vs full edit
+    let finalMessage = messages[msgIndex].message;
+    if (message?.trim()) finalMessage = message.trim();
+
     messages[msgIndex] = {
       ...messages[msgIndex],
-      message: message.trim(),
+      message: finalMessage,
       animationPrompt: finalPrompt,
       animation
     };
+
+    if (typeof x === 'number') messages[msgIndex].x = x;
+    if (typeof y === 'number') messages[msgIndex].y = y;
 
     writeMessages(messages);
     res.json(messages[msgIndex]);

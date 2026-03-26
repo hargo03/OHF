@@ -121,6 +121,10 @@ body {
   z-index: 100;
   background: linear-gradient(90deg, var(--purple) 0%, var(--pink) 100%);
   box-shadow: 0 4px 20px rgba(108,99,255,0.4);
+  height: 20vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .header-inner {
@@ -163,9 +167,12 @@ body {
 
 /* ── Wall Main ─────────────────────────────────────── */
 .wall-main {
-  max-width: 1300px;
-  margin: 0 auto;
-  padding: 32px 24px 80px;
+  width: 100%;
+  height: 80vh;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 /* ── Center States ─────────────────────────────────── */
@@ -189,23 +196,31 @@ body {
 
 /* ── Messages Grid ─────────────────────────────────── */
 .messages-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 /* ── Message Card ──────────────────────────────────── */
 .message-card {
+  position: absolute;
+  width: 320px;
   background: var(--card-bg);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
-  transition: transform var(--transition), box-shadow var(--transition);
+  transition: box-shadow var(--transition);
   animation: cardIn 0.4s ease both;
+  cursor: grab;
+  z-index: 10;
 }
 .message-card:hover {
-  transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
+  z-index: 50;
+}
+.message-card:active {
+  cursor: grabbing;
+  z-index: 99;
 }
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(20px); }

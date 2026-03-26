@@ -17,10 +17,15 @@ const AVATARS = [
 
 const GIF_URLS = [
   { name: 'Confetti', url: 'https://media.giphy.com/media/l2JHRhAtnJSDNJ2py/giphy.gif' },
-  { name: 'Party Time', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif' },
-  { name: 'Dance', url: 'https://media.giphy.com/media/11sBLVxIRvnAwe/giphy.gif' },
+  { name: 'Party Minions', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif' },
+  { name: 'Carlton Dance', url: 'https://media.giphy.com/media/11sBLVxIRvnAwe/giphy.gif' },
   { name: 'Crying Goodbye', url: 'https://media.giphy.com/media/xT0Gqjym2cZMIj4HxC/giphy.gif' },
-  { name: 'The Office', url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif' }
+  { name: 'Michael Scott', url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif' },
+  { name: 'Balloons', url: 'https://media.giphy.com/media/l0HlAL5R9Jv9hJ5UA/giphy.gif' },
+  { name: 'Spongebob Party', url: 'https://media.giphy.com/media/nDSlfqf0GN5PANIRPK/giphy.gif' },
+  { name: 'Happy Dog', url: 'https://media.giphy.com/media/3o7QSPx34WzJ2QJmQo/giphy.gif' },
+  { name: 'Sad Cat', url: 'https://media.giphy.com/media/L95W4wv8nnb9K/giphy.gif' },
+  { name: 'Farewell Salute', url: 'https://media.giphy.com/media/l4pMattUYTTM7qpIk/giphy.gif' }
 ];
 
 const CARD_THEMES = 6;
@@ -70,6 +75,7 @@ const animTypeRadios   = document.querySelectorAll('input[name="anim-type"]');
 const aiPromptGroup    = $('ai-prompt-group');
 const galleryGroup     = $('gallery-group');
 const lottieGallery    = $('lottie-gallery');
+const btnRefreshGallery = $('btn-refresh-gallery');
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function hashStr(str) {
@@ -181,7 +187,10 @@ function buildGifHtml(url) {
 
 // ── Init Lottie Gallery ────────────────────────────────────────────────────────
 function initGallery() {
-  lottieGallery.innerHTML = GIF_URLS.map((gif, idx) => `
+  const shuffled = [...GIF_URLS].sort(() => 0.5 - Math.random());
+  const selectedGifs = shuffled.slice(0, 5);
+
+  lottieGallery.innerHTML = selectedGifs.map((gif, idx) => `
     <div class="lottie-item" data-url="${gif.url}" data-idx="${idx}">
       <div style="position:absolute; bottom:5px; width:100%; text-align:center; font-size:10px; font-weight:bold; color:white; text-shadow:0px 0px 3px black; z-index:10; pointer-events:none;">${gif.name}</div>
       <iframe srcdoc='${buildGifHtml(gif.url)}'></iframe>
@@ -199,6 +208,9 @@ function initGallery() {
   });
 }
 initGallery();
+if (btnRefreshGallery) {
+  btnRefreshGallery.addEventListener('click', initGallery);
+}
 
 animTypeRadios.forEach(radio => {
   radio.addEventListener('change', (e) => {
@@ -291,6 +303,73 @@ function renderMessages(msgs) {
       iframe.srcdoc = m.animation;
     }
   });
+
+  attachDragListeners();
+}
+
+function attachDragListeners() {
+  const cards = document.querySelectorAll('.message-card');
+  const container = document.querySelector('.messages-grid');
+  if (!container) return;
+  
+  cards.forEach(card => {
+    let startX, startY, initialLeft, initialTop;
+    
+    card.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button') || e.target.tagName.toLowerCase() === 'button') return;
+      if (e.target.tagName.toLowerCase() === 'iframe') return; // let iframes scroll/click if needed, though they have pointer-events auto
+      
+      const containerRect = container.getBoundingClientRect();
+      
+      startX = e.clientX;
+      startY = e.clientY;
+      initialLeft = card.offsetLeft;
+      initialTop = card.offsetTop;
+      
+      card.setPointerCapture(e.pointerId);
+      card.style.transition = 'none'; 
+      
+      const onMove = (ev) => {
+        let newX = initialLeft + (ev.clientX - startX);
+        let newY = initialTop + (ev.clientY - startY);
+        
+        const maxW = containerRect.width - card.offsetWidth;
+        const maxH = containerRect.height - card.offsetHeight;
+        if (newX < 0) newX = 0; if (newX > maxW) newX = maxW;
+        if (newY < 0) newY = 0; if (newY > maxH) newY = maxH;
+        
+        card.style.left = `${newX}px`;
+        card.style.top = `${newY}px`;
+      };
+      
+      const onUp = async (ev) => {
+        card.releasePointerCapture(e.pointerId);
+        card.removeEventListener('pointermove', onMove);
+        card.removeEventListener('pointerup', onUp);
+        
+        card.style.transition = '';
+        
+        const finalLeftPerc = (card.offsetLeft / containerRect.width) * 100;
+        const finalTopPerc = (card.offsetTop / containerRect.height) * 100;
+        card.style.left = `${finalLeftPerc}%`;
+        card.style.top = `${finalTopPerc}%`;
+        
+        const id = card.getAttribute('data-id');
+        try {
+          await fetch(`/api/messages/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ x: finalLeftPerc, y: finalTopPerc })
+          });
+        } catch (err) {
+          console.error('Failed to save pos:', err);
+        }
+      };
+      
+      card.addEventListener('pointermove', onMove);
+      card.addEventListener('pointerup', onUp);
+    });
+  });
 }
 
 function buildCard(msg, index) {
@@ -300,6 +379,9 @@ function buildCard(msg, index) {
   const message = escapeHtml(msg.message);
   const prompt  = escapeHtml(msg.animationPrompt);
   const time    = formatTime(msg.timestamp);
+
+  const x = msg.x || (Math.random() * 70 + 5);
+  const y = msg.y || (Math.random() * 50 + 5);
 
   const isOwner = ownedIds.includes(msg.id);
 
@@ -312,7 +394,7 @@ function buildCard(msg, index) {
   ` : '';
 
   return `
-    <article class="message-card ${theme}" data-id="${msg.id}">
+    <article class="message-card ${theme}" data-id="${msg.id}" style="left: ${x}%; top: ${y}%;">
       <div class="card-header">
         <div class="card-avatar">${avatar}</div>
         <span class="card-nickname">${nick}</span>
@@ -387,13 +469,14 @@ btnSaveWall.addEventListener('click', async () => {
       const message = escapeHtml(msg.message).replace(/\n/g, '<br>');
       const prompt  = escapeHtml(msg.animationPrompt);
       const time    = formatTime(msg.timestamp);
+      
+      const x = msg.x || 10;
+      const y = msg.y || 10;
 
-      // We explicitly output the iframe without srcdoc using the actual html so it works offline independently
-      // To bypass offline srcdoc rendering issues on some browsers, we encode it as base64 data URI
       const encodedAnim = btoa(unescape(encodeURIComponent(msg.animation)));
       
       gridHtml += `
-        <article class="message-card ${theme}">
+        <article class="message-card ${theme}" style="left: ${x}%; top: ${y}%;">
           <div class="card-header">
             <div class="card-avatar">${avatar}</div>
             <span class="card-nickname">${nick}</span>
