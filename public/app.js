@@ -15,12 +15,12 @@ const AVATARS = [
   '🦩','🐙','🍄','🎪','🤖','🦸','🧙','🐝','🦀','🌵',
 ];
 
-const LOTTIE_URLS = [
-  { name: 'Confetti', url: 'https://assets9.lottiefiles.com/packages/lf20_U10l2e.json' },
-  { name: 'Rocket Launch', url: 'https://assets2.lottiefiles.com/packages/lf20_touohxv0.json' },
-  { name: 'Party Time', url: 'https://assets3.lottiefiles.com/packages/lf20_aBYm0U.json' },
-  { name: 'Dancing Taco', url: 'https://assets5.lottiefiles.com/packages/lf20_s0g2b0.json' },
-  { name: 'Fireworks', url: 'https://assets8.lottiefiles.com/packages/lf20_igjhxt9f.json' }
+const GIF_URLS = [
+  { name: 'Confetti', url: 'https://media.giphy.com/media/l2JHRhAtnJSDNJ2py/giphy.gif' },
+  { name: 'Party Time', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif' },
+  { name: 'Dance', url: 'https://media.giphy.com/media/11sBLVxIRvnAwe/giphy.gif' },
+  { name: 'Crying Goodbye', url: 'https://media.giphy.com/media/xT0Gqjym2cZMIj4HxC/giphy.gif' },
+  { name: 'The Office', url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif' }
 ];
 
 const CARD_THEMES = 6;
@@ -43,6 +43,7 @@ const btnSignin        = $('btn-signin');
 const userNameDisplay  = $('user-name-display');
 const btnAddMessage    = $('btn-add-message');
 const btnSignout       = $('btn-signout');
+const btnSaveWall      = $('btn-save-wall');
 const stateLoading     = $('state-loading');
 const stateEmpty       = $('state-empty');
 const stateError       = $('state-error');
@@ -117,12 +118,11 @@ function showToast(msg, duration = 3000) {
   toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
-function buildLottieHtml(url) {
+function buildGifHtml(url) {
   return `<!DOCTYPE html><html><head>
-<script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
 <style>body{margin:0;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh;background:transparent;}</style>
 </head><body>
-<dotlottie-player src="${url}" background="transparent" speed="1" style="width:100%;height:100%;" loop autoplay></dotlottie-player>
+<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />
 </body></html>`;
 }
 
@@ -181,10 +181,10 @@ function buildLottieHtml(url) {
 
 // ── Init Lottie Gallery ────────────────────────────────────────────────────────
 function initGallery() {
-  lottieGallery.innerHTML = LOTTIE_URLS.map((lot, idx) => `
-    <div class="lottie-item" data-url="${lot.url}" data-idx="${idx}">
-      <div style="position:absolute; bottom:5px; width:100%; text-align:center; font-size:10px; font-weight:bold; color:#555; z-index:10; pointer-events:none;">${lot.name}</div>
-      <iframe srcdoc='${buildLottieHtml(lot.url)}'></iframe>
+  lottieGallery.innerHTML = GIF_URLS.map((gif, idx) => `
+    <div class="lottie-item" data-url="${gif.url}" data-idx="${idx}">
+      <div style="position:absolute; bottom:5px; width:100%; text-align:center; font-size:10px; font-weight:bold; color:white; text-shadow:0px 0px 3px black; z-index:10; pointer-events:none;">${gif.name}</div>
+      <iframe srcdoc='${buildGifHtml(gif.url)}'></iframe>
     </div>
   `).join('');
 
@@ -193,7 +193,7 @@ function initGallery() {
       document.querySelectorAll('.lottie-item').forEach(el => el.classList.remove('selected'));
       item.classList.add('selected');
       const url = item.getAttribute('data-url');
-      selectedLottieHtml = buildLottieHtml(url);
+      selectedLottieHtml = buildGifHtml(url);
       btnPost.disabled = false; 
     });
   });
@@ -303,18 +303,13 @@ function buildCard(msg, index) {
 
   const isOwner = ownedIds.includes(msg.id);
 
-  let actionsHtml = `
+  let actionsHtml = isOwner ? `
     <div class="card-actions">
-      <button class="btn-action" onclick="downloadSnapshot('${msg.id}')">💾 Snapshot</button>
-  `;
-  if (isOwner) {
-    actionsHtml += `
       <div style="flex:1"></div>
       <button class="btn-action" onclick="editMessage('${msg.id}')">✏️ Edit</button>
       <button class="btn-action delete" onclick="deleteMessage('${msg.id}')">🗑️ Delete</button>
-    `;
-  }
-  actionsHtml += `</div>`;
+    </div>
+  ` : '';
 
   return `
     <article class="message-card ${theme}" data-id="${msg.id}">
@@ -364,8 +359,6 @@ window.editMessage = (id) => {
   $('modal-title').textContent = 'Edit Your Message ✏️';
   btnPost.innerHTML = '💾 Save Changes';
 
-  // For simplicity, force AI toggle on edit to let them see prompt. 
-  // If we wanted we could select gallery, but AI prompt is easiest fallback.
   animTypeRadios[0].click(); 
   animPrompt.value = msg.animationPrompt === 'Gallery Selection' ? '' : msg.animationPrompt;
   
@@ -377,38 +370,94 @@ window.editMessage = (id) => {
   }
 };
 
-window.downloadSnapshot = (id) => {
-  const msg = loadedMessages.find(m => m.id === id);
-  if (!msg || !msg.animation) return showToast('Cannot snapshot this card.');
+// ── Download Wall Snapshot ───────────────────────────────────────────────────
+btnSaveWall.addEventListener('click', async () => {
+  btnSaveWall.disabled = true;
+  btnSaveWall.textContent = 'Saving...';
+  
+  try {
+    const cssRes = await fetch('style.css');
+    const cssText = await cssRes.text();
+    
+    let gridHtml = '';
+    loadedMessages.forEach((msg, i) => {
+      const avatar  = escapeHtml(avatarFor(msg.nickname));
+      const theme   = themeFor(i);
+      const nick    = escapeHtml(msg.nickname);
+      const message = escapeHtml(msg.message).replace(/\n/g, '<br>');
+      const prompt  = escapeHtml(msg.animationPrompt);
+      const time    = formatTime(msg.timestamp);
 
-  let html = msg.animation;
-  const safeNick = escapeHtml(msg.nickname);
-  const safeMsg = escapeHtml(msg.message).replace(/\n/g, '<br>');
+      // We explicitly output the iframe without srcdoc using the actual html so it works offline independently
+      // To bypass offline srcdoc rendering issues on some browsers, we encode it as base64 data URI
+      const encodedAnim = btoa(unescape(encodeURIComponent(msg.animation)));
+      
+      gridHtml += `
+        <article class="message-card ${theme}">
+          <div class="card-header">
+            <div class="card-avatar">${avatar}</div>
+            <span class="card-nickname">${nick}</span>
+            <span class="card-time">${time}</span>
+          </div>
+          <iframe class="card-anim" scrolling="no" src="data:text/html;base64,${encodedAnim}"></iframe>
+          <div class="card-body">
+            <p class="card-message">${message}</p>
+            <span class="card-prompt-tag">🎨 ${prompt}</span>
+          </div>
+        </article>
+      `;
+    });
 
-  const overlayHtml = `
-    <div style="position:fixed; bottom:20px; left:20px; right:20px; background:rgba(255,255,255,0.95); padding:15px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.15); font-family:sans-serif; text-align:center; z-index:999999; backdrop-filter:blur(5px); border:1px solid rgba(0,0,0,0.1);">
-      <h3 style="margin:0 0 5px 0; color:#333; font-size:18px;">From: ${safeNick}</h3>
-      <p style="margin:0; color:#555; font-size:14px; line-height:1.4;">${safeMsg}</p>
-    </div>
-  `;
+    const finalHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rob's Outta Here Fiesta - Saved Wall</title>
+<style>${cssText}</style>
+<style>
+  body { background: #fdfcff; overflow-y: auto; padding: 40px 20px; }
+  .screen { display: block; position: relative; }
+  .wall-header { margin-bottom: 30px; }
+  .header-actions { display: none; }
+</style>
+</head>
+<body>
+  <div class="screen active">
+    <header class="wall-header">
+      <div class="header-inner">
+        <div class="header-title">
+          <span class="header-emoji">🎉</span>
+          <h1>Rob's Outta Here Fiesta!</h1>
+        </div>
+      </div>
+    </header>
+    <main class="wall-main">
+      <div class="messages-grid" style="display:grid;">
+        ${gridHtml}
+      </div>
+    </main>
+  </div>
+</body>
+</html>`;
 
-  if (html.toLowerCase().includes('</body>')) {
-    html = html.replace('</body>', overlayHtml + '</body>');
-  } else {
-    html += overlayHtml; 
+    const blob = new Blob([finalHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Robs_Fiesta_Wall.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Wall snapshot downloaded! 🎉');
+  } catch (err) {
+    showToast('Error saving wall: ' + err.message);
+  } finally {
+    btnSaveWall.disabled = false;
+    btnSaveWall.innerHTML = '💾 Save Wall';
   }
+});
 
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `FarewellCard_${safeNick.replace(/[^A-Za-z0-9]/g, '_')}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Snapshot downloaded! 🎉');
-};
 
 // ── Modal: Open / Close ───────────────────────────────────────────────────────
 function openModal() {
@@ -510,13 +559,13 @@ btnPost.addEventListener('click', async () => {
 
   try {
     const payload = {
-      nickname: currentNickname, // PUT doesn't technically update nickname right now, but fine to send
+      nickname: currentNickname, 
       message,
     };
     
     if (isAi) {
       payload.animationPrompt = prompt;
-      payload.customAnimationHtml = previewedAnimation; // Send what we already generated! Avoid double-generating.
+      payload.customAnimationHtml = previewedAnimation; 
     } else {
       payload.customAnimationHtml = selectedLottieHtml;
     }
