@@ -316,8 +316,14 @@ btnSignout.addEventListener('click', () => {
 });
 
 if (navToggle && wallHeader) {
+  const wallMain = document.querySelector('.wall-main');
   navToggle.addEventListener('click', () => {
-    wallHeader.classList.toggle('collapsed');
+    const isCollapsed = wallHeader.classList.toggle('collapsed');
+    navToggle.textContent = isCollapsed ? '☰' : '✕';
+    if (wallMain) {
+      wallMain.style.marginLeft = isCollapsed ? '56px' : '260px';
+      wallMain.style.width = isCollapsed ? 'calc(100% - 56px)' : 'calc(100% - 260px)';
+    }
   });
 }
 
