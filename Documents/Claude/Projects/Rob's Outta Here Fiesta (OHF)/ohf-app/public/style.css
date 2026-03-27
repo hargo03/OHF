@@ -846,9 +846,12 @@ body {
 @media print {
   @page { margin: 1cm; }
   body, html { height: auto; background: white; }
-  .wall-header, .wall-sidebar, .card-stickers, .btn, .modal-overlay, #toast, .nav-toggle { display: none !important; }
+  /* Hide the entire navigation sidebar and any UI controls */
+  .wall-header, .wall-sidebar, .card-stickers, .btn, .modal-overlay,
+  #toast, .nav-toggle, #wall-header { display: none !important; }
   .wall-main {
     margin: 0 !important;
+    margin-left: 0 !important;
     width: 100% !important;
     overflow: visible !important;
     padding: 0 !important;
