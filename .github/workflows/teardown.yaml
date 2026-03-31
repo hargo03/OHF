@@ -1,0 +1,30 @@
+name: Teardown OHF
+
+on:
+  workflow_dispatch:
+
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop and remove OHF from server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            echo "=== Stopping OHF service ==="
+            systemctl stop ohf || echo "Already stopped"
+            systemctl disable ohf || echo "Already disabled"
+
+            echo "=== Removing app and all data ==="
+            rm -rf /opt/ohf
+
+            echo "=== Removing systemd service ==="
+            rm -f /etc/systemd/system/ohf.service
+            systemctl daemon-reload
+
+            echo "=== Teardown complete ==="
+            df -h /
